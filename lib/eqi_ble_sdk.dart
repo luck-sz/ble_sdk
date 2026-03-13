@@ -11,6 +11,7 @@ export 'src/core/ble_characteristic.dart';
 export 'src/core/ble_constants.dart';
 export 'src/core/data_parser.dart';
 export 'src/core/byte_utils.dart';
+export 'src/drivers/fbp_ble_device.dart';
 
 // 数据模型层 - 通用数据模型
 export 'src/models/device_info.dart';
@@ -40,6 +41,9 @@ export 'src/protocols/ftms/eqi_extension/sport_id.dart';
 export 'src/protocols/ftms/eqi_extension/error_code.dart';
 export 'src/protocols/ftms/eqi_extension/mode_state.dart';
 export 'src/protocols/ftms/eqi_extension/buzzer_switch.dart';
+
+// ES 协议层
+export 'src/protocols/es/es_handshake_manager.dart';
 
 // 协议注册表
 export 'src/protocol_registry.dart';
