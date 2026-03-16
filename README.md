@@ -1,106 +1,148 @@
-# EQI BLE SDK
+# EQI BLE SDK 使用指南
 
-EQI BLE SDK 是一个专为 **EQI (亿健)** 健身设备设计的 Flutter SDK。它封装了标准 FTMS 协议以及 EQI 私有的扩展协议，采用协议无关的可伸缩架构，能够轻松适配各种底层的蓝牙库（如 `flutter_blue_plus`、`flutter_reactive_ble` 等）。
+EQI BLE SDK 是一个专为全系列健身设备（跑步机、单车、椭圆机等）设计的 Flutter 插件。它封装了标准的 FTMS 协议，并支持 EQI 私有的扩展协议（ES、EFC 等）。
 
-## 核心特性
+## 1. 安装与配置
 
-- **协议无关架构**：解耦了底层蓝牙库与业务代码，通过实现 `BleDevice` 接口即可替换蓝牙驱动。
-- **全机型支持**：内置 FTMS 标准下的跑步机、走步机、椭圆机、划船机、室内单车数据解析。
-- **EQI 私有扩展**：支持蜂鸣器开关、运动模式设定、目标值设定、故障码读取及运动会话 ID 管理。
-- **统一数据模型**：无论何种设备，均输出一致的 `WorkoutData`、`MachineStatus` 和 `TrainingStatus`。
-- **类型安全**：采用位段级解析，确保数据的准确性与高效性。
+### 1.1 依赖引用
+在您的 Flutter 项目的 `pubspec.yaml` 中，通过本地路径引用该 SDK：
 
-## 项目结构
-
-```text
-lib/
-├── eqi_ble_sdk.dart         # SDK 总入口，导出所有接口
-└── src/
-    ├── core/                # 核心层：定义 BleDevice, BleProtocol 等抽象接口
-    ├── models/              # 模型层：定义 WorkoutData, MachineType 等通用模型
-    ├── protocols/           # 协议实现层
-    │   └── ftms/            # FTMS 协议及其 EQI 扩展实现
-    │       ├── characteristics/ # 各机型数据特有的解析器
-    │       └── eqi_extension/   # EQI 私有扩展特性管理
-    └── protocol_registry.dart # (待实现) 协议注册中心，用于自动识别协议
+```yaml
+dependencies:
+  eqi_ble_sdk:
+    path: ../eqi_ble_sdk # 请填写 SDK 在您电脑上的真实相对或绝对路径
 ```
 
-## 使用说明
+### 1.2 权限配置
+由于 SDK 基于 `flutter_blue_plus`，请确保您的项目已配置蓝牙相关权限。
 
-### 1. 实现 BleDevice 驱动
+**Android:**
+在 `AndroidManifest.xml` 中添加：
+```xml
+<uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
+<uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+```
 
-由于本 SDK 是抽象的，你需要使用你喜欢的蓝牙库实现 `BleDevice` 接口：
+**iOS:**
+在 `Info.plist` 中添加：
+```xml
+<key>NSBluetoothAlwaysUsageDescription</key>
+<string>我们需要蓝牙连接健身设备</string>
+<key>NSBluetoothPeripheralUsageDescription</key>
+<string>我们需要蓝牙连接健身设备</string>
+```
+
+---
+
+## 2. 快速入门
+
+### 2.1 扫描并识别设备
+您可以使用 SDK 提供的 `ProtocolRegistry` 自动识别扫描到的蓝牙设备是否支持 EQI 协议。
 
 ```dart
-class MyBleDevice extends BleDevice {
-  // 实现 connect, disconnect, discoverServices, 
-  // writeCharacteristic, subscribeToCharacteristic 等方法
+import 'package:flutter_blue_plus/flutter_blue_plus.dart';
+import 'package:eqi_ble_sdk/eqi_ble_sdk.dart';
+
+// 监听扫描结果
+FlutterBluePlus.onScanResults.listen((results) {
+  for (ScanResult r in results) {
+    // 1. 将原生的广播数据包装为 SDK 模型
+    final adData = AdvertisingData.fromScanResult(r);
+    
+    // 2. 使用协议注册表进行匹配
+    final protocol = ProtocolRegistry.getProtocolForDevice(adData);
+    
+    if (protocol != null) {
+      print("发现设备: ${r.device.platformName}, 匹配协议: ${protocol.protocolName}");
+      // 进行下一步连接...
+    }
+  }
+});
+```
+
+### 2.2 连接与协议初始化
+连接设备时，请使用 `FbpBleDevice` 驱动包装类。
+
+```dart
+// 1. 创建驱动
+final bleDevice = FbpBleDevice(nativeBluetoothDevice);
+
+// 2. 连接并请求 MTU (SDK 内部已封装好相关逻辑)
+await bleDevice.connect();
+
+// 3. 获取对应的协议处理器 (例如 FTMS)
+final ftms = FtmsProtocol();
+await ftms.initialize(bleDevice);
+
+print("协议初始化成功，正在监听数据...");
+```
+
+---
+
+## 3. 核心功能调用
+
+### 3.1 监听运动数据
+SDK 将原始的蓝牙字节数据解析为统一的 `WorkoutData` 模型。
+
+```dart
+ftms.workoutDataStream.listen((data) {
+  print("--- 实时数据 ---");
+  print("速度: ${data.speed} km/h");
+  print("坡度: ${data.inclination} %");
+  print("距离: ${data.distance} m");
+  print("热量: ${data.calories} kcal");
+  print("心率: ${data.heartRate} bpm");
+});
+```
+
+### 3.2 发送控制命令
+**重要：** FTMS 协议规定，在发送设置命令前，通常必须先调用 `requestControl()`。
+
+```dart
+// 1. 请求控制权
+final resControl = await ftms.sendCommand(ControlCommand.requestControl());
+
+if (resControl.isSuccess) {
+  // 2. 开始运动
+  await ftms.sendCommand(ControlCommand.startOrResume());
+  
+  // 3. 设置目标速度 (例如 5.0 km/h)
+  await ftms.sendCommand(ControlCommand.setTargetSpeed(5.0));
+  
+  // 4. 停止运动
+  // await ftms.sendCommand(ControlCommand.stop());
 }
 ```
 
-### 2. 初始化协议
-
-使用实现的 `BleDevice` 实例初始化对应的协议（以 FTMS 为例）：
-
-```dart
-final device = MyBleDevice(id: "XX:XX:XX:XX");
-final protocol = FtmsProtocol(); // 实例化 FTMS 协议
-
-await protocol.initialize(device);
-```
-
-### 3. 监听运动数据
+### 3.3 EQI 特有扩展功能
+针对支持 EQI 扩展特性的设备，可以使用 `eqiExtension` 接口：
 
 ```dart
-protocol.workoutDataStream.listen((data) {
-  print("当前速度: ${data.instantaneousSpeed} km/h");
-  print("累计距离: ${data.totalDistance} m");
-});
+// 切换单位为公制 (Metric)
+await ftms.eqiExtension.setUnit(UnitType.metric);
 
-protocol.machineStatusStream.listen((status) {
-  if (status.isStopped) print("设备已停止");
-});
+// 控制蜂鸣器开关
+await ftms.eqiExtension.setBuzzer(true);
 ```
-
-### 4. 发送控制命令
-
-```dart
-// 请求控制权
-await protocol.sendCommand(ControlCommand.requestControl());
-
-// 启动设备
-await protocol.sendCommand(ControlCommand.startOrResume());
-
-// 设置速度
-await protocol.sendCommand(ControlCommand.setTargetSpeed(8.5));
-```
-
-### 5. 使用 EQI 扩展功能
-
-```dart
-final ftms = protocol as FtmsProtocol;
-final extension = ftms.eqiExtension;
-
-// 设置目标运动时间（600秒）
-await extension.setModeState(EqiModeState(
-  supportedModes: 0x0F, 
-  currentMode: EqiWorkoutMode.time,
-  modeTarget: 600,
-));
-
-// 关闭蜂鸣器
-await extension.setBuzzerSwitch(false);
-```
-
-## 缺失项分析
-
-目前项目已搭建了稳健的基础架构，但仍缺失以下关键组件：
-
-1.  **`FtmsProtocol` 类实现**：`lib/src/protocols/ftms/ftms_protocol.dart` 尚未创建，它是连接 `BleDevice` 与各项解析器的中枢。
-2.  **`ProtocolRegistry` 类实现**：`lib/src/protocol_registry.dart` 尚未创建，用于根据广播信息自动匹配设备协议。
-3.  **单元测试**：目前 `test/` 目录下缺乏针对各种数据解析器的 Mock 测试。
-4.  **示例工程**：`example/` 文件夹缺失，建议提供一个完整的 `flutter_blue_plus` 适配示例。
-5.  **依赖配置**：`pubspec.yaml` 中尚未添加可能需要的辅助库（如 `meta` 用于注解）。
 
 ---
-© 2026 EQI Team. All rights reserved.
+
+## 4. 调试说明
+本 SDK 在关键路径上埋入了日志，前缀标识为 `[BleSdk]`。
+
+您可以在调试控制台搜索 `BleSdk` 来查看完整的通信流程，包括：
+*   连接状态变更。
+*   MTU 请求结果。
+*   命令发送与设备返回的确认结果。
+*   协议解析异常。
+
+---
+
+## 5. 常见问题 (FAQ)
+
+**Q: 发送命令后没有效果？**
+A: 请检查是否先成功调用了 `requestControl()`。另外，请在 `BleSdk` 日志中确认设备返回的 `ControlResponse` 是否为 `success`。
+
+**Q: 连接成功但收不到数据？**
+A: 请确认 `ftms.initialize(device)` 是否已执行完成。该步骤会订阅所有相关的蓝牙通知 (Notify)。

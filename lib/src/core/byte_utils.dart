@@ -55,10 +55,7 @@ class ByteUtils {
 
   /// 将一个无符号 16 位整数（小端序）写入字节列表。
   static Uint8List writeUint16(int value) {
-    return Uint8List.fromList([
-      value & 0xFF,
-      (value >> 8) & 0xFF,
-    ]);
+    return Uint8List.fromList([value & 0xFF, (value >> 8) & 0xFF]);
   }
 
   /// 将一个有符号 16 位整数（小端序）写入字节列表。

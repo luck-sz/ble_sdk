@@ -1,7 +1,7 @@
 import 'dart:typed_data';
-import '../../core/byte_utils.dart';
-import '../../models/workout_data.dart';
-import '../../models/machine_type.dart';
+import '../../../core/byte_utils.dart';
+import '../../../models/workout_data.dart';
+import '../../../models/machine_type.dart';
 
 /// 划船机数据特性（0x2AD1）的解析器。
 class RowerDataParser {

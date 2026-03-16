@@ -138,15 +138,15 @@ class ControlCommand {
 
   /// 创建一个「停止」命令。
   factory ControlCommand.stop() => ControlCommand(
-        opCode: ControlOpCode.stopOrPause,
-        parameter: ByteUtils.writeUint8(StopPauseParam.stop.code),
-      );
+    opCode: ControlOpCode.stopOrPause,
+    parameter: ByteUtils.writeUint8(StopPauseParam.stop.code),
+  );
 
   /// 创建一个「暂停」命令。
   factory ControlCommand.pause() => ControlCommand(
-        opCode: ControlOpCode.stopOrPause,
-        parameter: ByteUtils.writeUint8(StopPauseParam.pause.code),
-      );
+    opCode: ControlOpCode.stopOrPause,
+    parameter: ByteUtils.writeUint8(StopPauseParam.pause.code),
+  );
 
   /// 将此命令编码为字节数组，以发送到控制点。
   Uint8List toBytes() {
@@ -157,7 +157,8 @@ class ControlCommand {
   }
 
   @override
-  String toString() => 'ControlCommand(opCode=${opCode.name}, params=$parameter)';
+  String toString() =>
+      'ControlCommand(opCode=${opCode.name}, params=$parameter)';
 }
 
 /// 来自健身设备控制点的响应。
@@ -186,7 +187,9 @@ class ControlResponse {
     }
     return ControlResponse(
       requestOpCode: ControlOpCode.fromCode(data[1]) ?? ControlOpCode.response,
-      resultCode: ControlResultCode.fromCode(data[2]) ?? ControlResultCode.operationFailed,
+      resultCode:
+          ControlResultCode.fromCode(data[2]) ??
+          ControlResultCode.operationFailed,
       responseParameter: data.length > 3 ? data.sublist(3) : null,
     );
   }

@@ -44,5 +44,5 @@ class BleCharacteristic {
 }
 
 /// 处理特性数据通知的回调类型定义。
-typedef CharacteristicDataCallback = void Function(
-    BleCharacteristic characteristic, Uint8List data);
+typedef CharacteristicDataCallback =
+    void Function(BleCharacteristic characteristic, Uint8List data);

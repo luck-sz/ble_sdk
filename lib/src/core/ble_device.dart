@@ -1,15 +1,8 @@
 import 'dart:async';
 import 'dart:typed_data';
 
-import 'ble_characteristic.dart';
-
 /// 表示 BLE 设备的连接状态。
-enum BleConnectionState {
-  disconnected,
-  connecting,
-  connected,
-  disconnecting,
-}
+enum BleConnectionState { disconnected, connecting, connected, disconnecting }
 
 /// BLE 设备的抽象表示。
 ///
@@ -39,7 +32,10 @@ abstract class BleDevice {
   Future<List<BleServiceInfo>> discoverServices();
 
   /// 读取某个特性的值。
-  Future<Uint8List> readCharacteristic(String serviceUuid, String characteristicUuid);
+  Future<Uint8List> readCharacteristic(
+    String serviceUuid,
+    String characteristicUuid,
+  );
 
   /// 向某个特性写入值。
   Future<void> writeCharacteristic(
@@ -52,11 +48,15 @@ abstract class BleDevice {
   /// 订阅某个特性的通知。
   /// 返回数据更新的数据流。
   Stream<Uint8List> subscribeToCharacteristic(
-      String serviceUuid, String characteristicUuid);
+    String serviceUuid,
+    String characteristicUuid,
+  );
 
   /// 取消订阅通知。
   Future<void> unsubscribeFromCharacteristic(
-      String serviceUuid, String characteristicUuid);
+    String serviceUuid,
+    String characteristicUuid,
+  );
 }
 
 /// 已发现的 BLE 服务信息。
@@ -64,10 +64,7 @@ class BleServiceInfo {
   final String uuid;
   final List<BleCharacteristicInfo> characteristics;
 
-  const BleServiceInfo({
-    required this.uuid,
-    required this.characteristics,
-  });
+  const BleServiceInfo({required this.uuid, required this.characteristics});
 }
 
 /// 已发现的 BLE 特性信息。

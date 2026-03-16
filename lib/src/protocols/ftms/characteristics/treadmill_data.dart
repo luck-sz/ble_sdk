@@ -1,7 +1,7 @@
 import 'dart:typed_data';
-import '../../core/byte_utils.dart';
-import '../../models/workout_data.dart';
-import '../../models/machine_type.dart';
+import '../../../core/byte_utils.dart';
+import '../../../models/workout_data.dart';
+import '../../../models/machine_type.dart';
 
 /// 跑步机数据特性（0x2ACD）的解析器。
 class TreadmillDataParser {

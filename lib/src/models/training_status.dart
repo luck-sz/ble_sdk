@@ -88,10 +88,7 @@ class TrainingStatus {
   /// 从原始字节解析训练状态。
   factory TrainingStatus.fromBytes(Uint8List data) {
     if (data.isEmpty) {
-      return TrainingStatus(
-        status: TrainingStatusCode.other,
-        rawData: data,
-      );
+      return TrainingStatus(status: TrainingStatusCode.other, rawData: data);
     }
 
     // 字节 0：标志位

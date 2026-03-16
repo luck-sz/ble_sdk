@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:typed_data';
+import 'dart:developer' as developer;
 
 import '../../core/ble_device.dart';
 import '../../core/ble_protocol.dart';
@@ -23,6 +24,7 @@ import 'eqi_extension/eqi_extension.dart';
 /// 实现了 Fitness Machine Service (0x1826) 标准协议逻辑，
 /// 并通过 EqiExtensionManager 整合了 EQI 健身设备的增强功能。
 class FtmsProtocol implements BleProtocol {
+  static const String _tag = "BleSdk";
   BleDevice? _device;
   bool _initialized = false;
 
@@ -34,9 +36,12 @@ class FtmsProtocol implements BleProtocol {
   EqiExtensionManager get eqiExtension => _eqiExtension;
 
   // 数据流控制器
-  final StreamController<WorkoutData> _workoutDataController = StreamController<WorkoutData>.broadcast();
-  final StreamController<MachineStatus> _machineStatusController = StreamController<MachineStatus>.broadcast();
-  final StreamController<TrainingStatus> _trainingStatusController = StreamController<TrainingStatus>.broadcast();
+  final StreamController<WorkoutData> _workoutDataController =
+      StreamController<WorkoutData>.broadcast();
+  final StreamController<MachineStatus> _machineStatusController =
+      StreamController<MachineStatus>.broadcast();
+  final StreamController<TrainingStatus> _trainingStatusController =
+      StreamController<TrainingStatus>.broadcast();
 
   // 订阅列表，用于释放资源
   final List<StreamSubscription> _subscriptions = [];
@@ -55,18 +60,19 @@ class FtmsProtocol implements BleProtocol {
 
   @override
   Set<MachineType> get supportedMachineTypes => {
-        MachineType.treadmill,
-        MachineType.walkingMachine,
-        MachineType.crossTrainer,
-        MachineType.rower,
-        MachineType.indoorBike,
-      };
+    MachineType.treadmill,
+    MachineType.walkingMachine,
+    MachineType.crossTrainer,
+    MachineType.rower,
+    MachineType.indoorBike,
+  };
 
   @override
   bool get isInitialized => _initialized && _device != null;
 
   @override
   Future<void> initialize(BleDevice device) async {
+    developer.log("[$_tag] Initializing FTMS Protocol...", name: _tag);
     _device = device;
     _controlPoint = FtmsControlPoint(device);
     _eqiExtension = EqiExtensionManager(device);
@@ -84,7 +90,13 @@ class FtmsProtocol implements BleProtocol {
       _trainingStatusController.add(TrainingStatus.fromBytes(data));
     });
 
-    // 3. 根据设备类型订阅运动数据
+    // 4. 订阅控制点响应 (0x2AD9)
+    // 控制命令发送后，设备会通过此特征值返回 Indication
+    await _subscribeTo(FtmsConstants.fitnessMachineControlPointUuid, (data) {
+      _controlPoint.handleControlPointResponse(data);
+    });
+
+    // 5. 根据设备类型订阅运动数据
     // 注意：实际应用中这里建议通过扫描结果或 Feature 读取结果动态决定订阅内容
     for (final machineType in supportedMachineTypes) {
       final uuid = FtmsDataParser.getDataCharacteristicUuid(machineType);
@@ -98,18 +110,25 @@ class FtmsProtocol implements BleProtocol {
       }
     }
 
+    developer.log("[$_tag] FTMS Protocol initialized", name: _tag);
     _initialized = true;
   }
 
   /// 辅助方法：订阅特定特征值并管理其订阅实例。
   Future<void> _subscribeTo(String uuid, Function(Uint8List) onData) async {
     try {
+      developer.log("[$_tag] Subscribing to characteristic: $uuid", name: _tag);
       final sub = _device!
           .subscribeToCharacteristic(FtmsConstants.serviceUuid, uuid)
-          .listen(onData);
+          .listen(
+            onData,
+            onError: (e) {
+              developer.log("[$_tag] Stream error for $uuid: $e", name: _tag);
+            },
+          );
       _subscriptions.add(sub);
-    } catch (_) {
-      // 容错处理：如果特征值不存在则忽略
+    } catch (e) {
+      developer.log("[$_tag] Failed to subscribe to $uuid: $e", name: _tag);
     }
   }
 
@@ -134,10 +153,22 @@ class FtmsProtocol implements BleProtocol {
     if (!isInitialized) return const DeviceInfo();
 
     final futures = {
-      'manufacturer': _device!.readCharacteristic(BleConstants.disServiceUuid, BleConstants.manufacturerNameUuid),
-      'model': _device!.readCharacteristic(BleConstants.disServiceUuid, BleConstants.modelNumberUuid),
-      'fw': _device!.readCharacteristic(BleConstants.disServiceUuid, BleConstants.firmwareRevisionUuid),
-      'hw': _device!.readCharacteristic(BleConstants.disServiceUuid, BleConstants.hardwareRevisionUuid),
+      'manufacturer': _device!.readCharacteristic(
+        BleConstants.disServiceUuid,
+        BleConstants.manufacturerNameUuid,
+      ),
+      'model': _device!.readCharacteristic(
+        BleConstants.disServiceUuid,
+        BleConstants.modelNumberUuid,
+      ),
+      'fw': _device!.readCharacteristic(
+        BleConstants.disServiceUuid,
+        BleConstants.firmwareRevisionUuid,
+      ),
+      'hw': _device!.readCharacteristic(
+        BleConstants.disServiceUuid,
+        BleConstants.hardwareRevisionUuid,
+      ),
     };
 
     final results = await Future.wait(futures.values);
@@ -157,10 +188,12 @@ class FtmsProtocol implements BleProtocol {
   Stream<WorkoutData> get workoutDataStream => _workoutDataController.stream;
 
   @override
-  Stream<MachineStatus> get machineStatusStream => _machineStatusController.stream;
+  Stream<MachineStatus> get machineStatusStream =>
+      _machineStatusController.stream;
 
   @override
-  Stream<TrainingStatus> get trainingStatusStream => _trainingStatusController.stream;
+  Stream<TrainingStatus> get trainingStatusStream =>
+      _trainingStatusController.stream;
 
   @override
   Future<ControlResponse> sendCommand(ControlCommand command) async {
@@ -182,10 +215,16 @@ class FtmsProtocol implements BleProtocol {
 
     return SupportedRanges(
       speedRange: results[0] != null ? SpeedRange.fromBytes(results[0]!) : null,
-      inclinationRange: results[1] != null ? InclinationRange.fromBytes(results[1]!) : null,
-      resistanceRange: results[2] != null ? ResistanceRange.fromBytes(results[2]!) : null,
+      inclinationRange: results[1] != null
+          ? InclinationRange.fromBytes(results[1]!)
+          : null,
+      resistanceRange: results[2] != null
+          ? ResistanceRange.fromBytes(results[2]!)
+          : null,
       powerRange: results[3] != null ? PowerRange.fromBytes(results[3]!) : null,
-      heartRateRange: results[4] != null ? HeartRateRange.fromBytes(results[4]!) : null,
+      heartRateRange: results[4] != null
+          ? HeartRateRange.fromBytes(results[4]!)
+          : null,
     );
   }
 
@@ -200,7 +239,9 @@ class FtmsProtocol implements BleProtocol {
   /// 读取设备的功能字。
   Future<FtmsMachineFeature> readFeatures() async {
     final data = await _device!.readCharacteristic(
-        FtmsConstants.serviceUuid, FtmsConstants.fitnessMachineFeatureUuid);
+      FtmsConstants.serviceUuid,
+      FtmsConstants.fitnessMachineFeatureUuid,
+    );
     return FtmsMachineFeature.fromBytes(data);
   }
 }

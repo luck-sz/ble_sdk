@@ -1,7 +1,6 @@
 import 'core/ble_protocol.dart';
 import 'models/advertising_data.dart';
 import 'protocols/ftms/ftms_protocol.dart';
-import 'protocols/ftms/ftms_constants.dart';
 
 /// 协议注册中心，负责根据设备广播信息自动匹配并创建对应的协议处理器。
 class ProtocolRegistry {
@@ -14,7 +13,7 @@ class ProtocolRegistry {
   /// 如果无法识别，则返回 null。
   static BleProtocol? getProtocolForDevice(AdvertisingData ad) {
     // 1. 通过 FTMS 服务 UUID 识别 (0x1826)
-    if (ad.machineTypeBitmask != null || 
+    if (ad.machineTypeBitmask != null ||
         (ad.isEqiDevice && ad.machineType != null)) {
       return FtmsProtocol();
     }

@@ -69,11 +69,13 @@ class MachineStatus {
 
   /// 设备是否已停止（而非暂停）。
   bool get isStopped =>
-      statusCode == MachineStatusCode.stoppedOrPausedByUser && controlInfo == 0x01;
+      statusCode == MachineStatusCode.stoppedOrPausedByUser &&
+      controlInfo == 0x01;
 
   /// 设备是否已暂停（而非停止）。
   bool get isPaused =>
-      statusCode == MachineStatusCode.stoppedOrPausedByUser && controlInfo == 0x02;
+      statusCode == MachineStatusCode.stoppedOrPausedByUser &&
+      controlInfo == 0x02;
 
   /// 从原始字节解析设备状态。
   factory MachineStatus.fromBytes(Uint8List data) {
@@ -123,9 +125,11 @@ class MachineStatus {
     if (controlInfo != null) {
       extra.add(controlInfo == 0x01 ? 'stop' : 'pause');
     }
-    if (newTargetSpeed != null) extra.add('speed=${newTargetSpeed}km/h');
-    if (newTargetIncline != null) extra.add('incline=${newTargetIncline}%');
-    if (newTargetResistance != null) extra.add('resistance=$newTargetResistance');
+    if (newTargetSpeed != null) extra.add('speed=$newTargetSpeed km/h');
+    if (newTargetIncline != null) extra.add('incline=$newTargetIncline%');
+    if (newTargetResistance != null) {
+      extra.add('resistance=$newTargetResistance');
+    }
     return 'MachineStatus(${statusCode.name}${extra.isNotEmpty ? ', ${extra.join(', ')}' : ''})';
   }
 }

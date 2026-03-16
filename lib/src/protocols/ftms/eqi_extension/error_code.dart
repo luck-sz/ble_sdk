@@ -57,5 +57,6 @@ enum EqiErrorCode {
   }
 
   @override
-  String toString() => 'EqiErrorCode(0x${code.toRadixString(16)}: $description)';
+  String toString() =>
+      'EqiErrorCode(0x${code.toRadixString(16)}: $description)';
 }

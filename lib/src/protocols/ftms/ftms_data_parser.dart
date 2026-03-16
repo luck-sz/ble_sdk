@@ -14,7 +14,10 @@ class FtmsDataParser {
   FtmsDataParser._();
 
   /// 根据给定的特性 UUID 和原始数据解析运动数据。
-  static WorkoutData? parseWorkoutData(String characteristicUuid, Uint8List data) {
+  static WorkoutData? parseWorkoutData(
+    String characteristicUuid,
+    Uint8List data,
+  ) {
     final uuid = characteristicUuid.toLowerCase();
 
     if (uuid == FtmsConstants.treadmillDataUuid) {

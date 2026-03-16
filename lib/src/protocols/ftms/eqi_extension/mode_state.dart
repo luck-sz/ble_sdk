@@ -85,9 +85,7 @@ class EqiModeState {
     final currentMode = data.length > 1
         ? EqiWorkoutMode.fromCode(data[1])
         : EqiWorkoutMode.unknown;
-    final modeTarget = data.length >= 4
-        ? ByteUtils.readUint16(data, 2)
-        : null;
+    final modeTarget = data.length >= 4 ? ByteUtils.readUint16(data, 2) : null;
 
     return EqiModeState(
       supportedModes: supportedModes,

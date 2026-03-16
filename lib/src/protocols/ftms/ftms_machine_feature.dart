@@ -30,37 +30,56 @@ class FtmsMachineFeature {
   bool get strideCountSupported => ByteUtils.isBitSet(machineFeatures, 8);
   bool get expendedEnergySupported => ByteUtils.isBitSet(machineFeatures, 9);
   bool get heartRateSupported => ByteUtils.isBitSet(machineFeatures, 10);
-  bool get metabolicEquivalentSupported => ByteUtils.isBitSet(machineFeatures, 11);
+  bool get metabolicEquivalentSupported =>
+      ByteUtils.isBitSet(machineFeatures, 11);
   bool get elapsedTimeSupported => ByteUtils.isBitSet(machineFeatures, 12);
   bool get remainingTimeSupported => ByteUtils.isBitSet(machineFeatures, 13);
   bool get powerMeasurementSupported => ByteUtils.isBitSet(machineFeatures, 14);
   bool get forceOnBeltSupported => ByteUtils.isBitSet(machineFeatures, 15);
-  bool get userDataRetentionSupported => ByteUtils.isBitSet(machineFeatures, 16);
+  bool get userDataRetentionSupported =>
+      ByteUtils.isBitSet(machineFeatures, 16);
 
   // === 目标设置功能标志位 ===
   bool get speedTargetSupported => ByteUtils.isBitSet(targetSettingFeatures, 0);
-  bool get inclinationTargetSupported => ByteUtils.isBitSet(targetSettingFeatures, 1);
-  bool get resistanceTargetSupported => ByteUtils.isBitSet(targetSettingFeatures, 2);
+  bool get inclinationTargetSupported =>
+      ByteUtils.isBitSet(targetSettingFeatures, 1);
+  bool get resistanceTargetSupported =>
+      ByteUtils.isBitSet(targetSettingFeatures, 2);
   bool get powerTargetSupported => ByteUtils.isBitSet(targetSettingFeatures, 3);
-  bool get heartRateTargetSupported => ByteUtils.isBitSet(targetSettingFeatures, 4);
-  bool get expendedEnergyConfigSupported => ByteUtils.isBitSet(targetSettingFeatures, 5);
-  bool get stepNumberConfigSupported => ByteUtils.isBitSet(targetSettingFeatures, 6);
-  bool get strideNumberConfigSupported => ByteUtils.isBitSet(targetSettingFeatures, 7);
-  bool get distanceConfigSupported => ByteUtils.isBitSet(targetSettingFeatures, 8);
-  bool get trainingTimeConfigSupported => ByteUtils.isBitSet(targetSettingFeatures, 9);
-  bool get twoHrZoneConfigSupported => ByteUtils.isBitSet(targetSettingFeatures, 10);
-  bool get threeHrZoneConfigSupported => ByteUtils.isBitSet(targetSettingFeatures, 11);
-  bool get fiveHrZoneConfigSupported => ByteUtils.isBitSet(targetSettingFeatures, 12);
-  bool get indoorBikeSimulationSupported => ByteUtils.isBitSet(targetSettingFeatures, 13);
-  bool get wheelCircumferenceConfigSupported => ByteUtils.isBitSet(targetSettingFeatures, 14);
-  bool get spinDownControlSupported => ByteUtils.isBitSet(targetSettingFeatures, 15);
-  bool get cadenceConfigSupported => ByteUtils.isBitSet(targetSettingFeatures, 16);
+  bool get heartRateTargetSupported =>
+      ByteUtils.isBitSet(targetSettingFeatures, 4);
+  bool get expendedEnergyConfigSupported =>
+      ByteUtils.isBitSet(targetSettingFeatures, 5);
+  bool get stepNumberConfigSupported =>
+      ByteUtils.isBitSet(targetSettingFeatures, 6);
+  bool get strideNumberConfigSupported =>
+      ByteUtils.isBitSet(targetSettingFeatures, 7);
+  bool get distanceConfigSupported =>
+      ByteUtils.isBitSet(targetSettingFeatures, 8);
+  bool get trainingTimeConfigSupported =>
+      ByteUtils.isBitSet(targetSettingFeatures, 9);
+  bool get twoHrZoneConfigSupported =>
+      ByteUtils.isBitSet(targetSettingFeatures, 10);
+  bool get threeHrZoneConfigSupported =>
+      ByteUtils.isBitSet(targetSettingFeatures, 11);
+  bool get fiveHrZoneConfigSupported =>
+      ByteUtils.isBitSet(targetSettingFeatures, 12);
+  bool get indoorBikeSimulationSupported =>
+      ByteUtils.isBitSet(targetSettingFeatures, 13);
+  bool get wheelCircumferenceConfigSupported =>
+      ByteUtils.isBitSet(targetSettingFeatures, 14);
+  bool get spinDownControlSupported =>
+      ByteUtils.isBitSet(targetSettingFeatures, 15);
+  bool get cadenceConfigSupported =>
+      ByteUtils.isBitSet(targetSettingFeatures, 16);
 
   /// 从原始字节解析（共 8 字节：前 4 字节为设备功能，后 4 字节为目标设置功能）。
   factory FtmsMachineFeature.fromBytes(Uint8List data) {
     return FtmsMachineFeature(
       machineFeatures: ByteUtils.readUint32(data, 0),
-      targetSettingFeatures: data.length >= 8 ? ByteUtils.readUint32(data, 4) : 0,
+      targetSettingFeatures: data.length >= 8
+          ? ByteUtils.readUint32(data, 4)
+          : 0,
     );
   }
 

@@ -138,16 +138,18 @@ class WorkoutData {
 
   @override
   String toString() {
-    final parts = <String>[
-      'WorkoutData(type=${machineType.englishName}',
-    ];
-    if (instantaneousSpeed != null) parts.add('speed=${instantaneousSpeed}km/h');
+    final parts = <String>['WorkoutData(type=${machineType.englishName}'];
+    if (instantaneousSpeed != null) {
+      parts.add('speed=${instantaneousSpeed}km/h');
+    }
     if (totalDistance != null) parts.add('dist=${totalDistance}m');
     if (totalEnergy != null) parts.add('energy=${totalEnergy}kcal');
     if (heartRate != null) parts.add('hr=${heartRate}bpm');
     if (elapsedTime != null) parts.add('time=${elapsedTime}s');
     if (instantaneousPower != null) parts.add('power=${instantaneousPower}W');
-    if (instantaneousCadence != null) parts.add('cadence=${instantaneousCadence}rpm');
+    if (instantaneousCadence != null) {
+      parts.add('cadence=${instantaneousCadence}rpm');
+    }
     parts.add(')');
     return parts.join(', ');
   }

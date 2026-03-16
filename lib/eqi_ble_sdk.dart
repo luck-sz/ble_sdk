@@ -2,7 +2,7 @@
 ///
 /// 本 SDK 支持 EQI FTMS 通信协议，并设计为可扩展架构，
 /// 以便未来支持更多协议（EFC、ES 等）。
-library eqi_ble_sdk;
+library;
 
 // 核心层 - 基础抽象
 export 'src/core/ble_protocol.dart';

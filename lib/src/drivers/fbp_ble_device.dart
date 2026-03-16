@@ -1,16 +1,19 @@
 import 'dart:async';
 import 'dart:typed_data';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
+import 'dart:developer' as developer;
 import '../core/ble_device.dart';
 
 /// 使用 flutter_blue_plus 库实现的 BleDevice。
-/// 
+///
 /// 适合 5w+ 日活的商业项目，内部集成了 MTU 设置和基础的状态转换。
 class FbpBleDevice extends BleDevice {
+  static const String _tag = "BleSdk";
   final BluetoothDevice _device;
   final StreamController<BleConnectionState> _connectionStateController =
       StreamController<BleConnectionState>.broadcast();
   StreamSubscription? _stateSubscription;
+  BleConnectionState _lastKnownState = BleConnectionState.disconnected;
 
   FbpBleDevice(this._device) {
     _initConnectionStateListener();
@@ -18,18 +21,17 @@ class FbpBleDevice extends BleDevice {
 
   void _initConnectionStateListener() {
     _stateSubscription = _device.connectionState.listen((state) {
+      developer.log("[$_tag] Connection state changed: $state", name: _tag);
       switch (state) {
         case BluetoothConnectionState.connected:
+          _lastKnownState = BleConnectionState.connected;
           _connectionStateController.add(BleConnectionState.connected);
           break;
-        case BluetoothConnectionState.connecting:
-          _connectionStateController.add(BleConnectionState.connecting);
-          break;
         case BluetoothConnectionState.disconnected:
+          _lastKnownState = BleConnectionState.disconnected;
           _connectionStateController.add(BleConnectionState.disconnected);
           break;
-        case BluetoothConnectionState.disconnecting:
-          _connectionStateController.add(BleConnectionState.disconnecting);
+        default:
           break;
       }
     });
@@ -39,33 +41,44 @@ class FbpBleDevice extends BleDevice {
   String get deviceId => _device.remoteId.str;
 
   @override
-  String? get deviceName => _device.advName.isNotEmpty ? _device.advName : _device.platformName;
+  String? get deviceName =>
+      _device.advName.isNotEmpty ? _device.advName : _device.platformName;
 
   @override
-  BleConnectionState get connectionState {
-    // 这里是一个简化的映射，实际在商业项目中建议维护一个内部变量
-    return BleConnectionState.disconnected;
-  }
+  BleConnectionState get connectionState => _lastKnownState;
 
   @override
-  Stream<BleConnectionState> get connectionStateStream => _connectionStateController.stream;
+  Stream<BleConnectionState> get connectionStateStream =>
+      _connectionStateController.stream;
 
   @override
   Future<void> connect({Duration? timeout}) async {
+    developer.log("[$_tag] Connecting to device: $deviceId", name: _tag);
     // 商业项目建议：连接前先停止扫描，防止 status 133
     try {
       if (FlutterBluePlus.isScanningNow) {
+        developer.log("[$_tag] Stopping scan before connection", name: _tag);
         await FlutterBluePlus.stopScan();
       }
     } catch (_) {}
 
-    await _device.connect(timeout: timeout ?? const Duration(seconds: 15), autoConnect: false);
-    
+    try {
+      await _device.connect(
+        timeout: timeout ?? const Duration(seconds: 15),
+        autoConnect: false,
+      );
+      developer.log("[$_tag] Connected successfully", name: _tag);
+    } catch (e) {
+      developer.log("[$_tag] Connection failed: $e", name: _tag, error: e);
+      rethrow;
+    }
+
     // 连接成功后建议请求 MTU 以支持 FTMS 大数据包
     try {
+      developer.log("[$_tag] Requesting MTU 512", name: _tag);
       await _device.requestMtu(512);
-    } catch (_) {
-      // 部分机型可能不支持请求 MTU，忽略即可
+    } catch (e) {
+      developer.log("[$_tag] Request MTU failed: $e", name: _tag);
     }
   }
 
@@ -95,7 +108,10 @@ class FbpBleDevice extends BleDevice {
   }
 
   @override
-  Future<Uint8List> readCharacteristic(String serviceUuid, String characteristicUuid) async {
+  Future<Uint8List> readCharacteristic(
+    String serviceUuid,
+    String characteristicUuid,
+  ) async {
     final char = await _getCharacteristic(serviceUuid, characteristicUuid);
     return Uint8List.fromList(await char.read());
   }
@@ -112,27 +128,37 @@ class FbpBleDevice extends BleDevice {
   }
 
   @override
-  Stream<Uint8List> subscribeToCharacteristic(String serviceUuid, String characteristicUuid) async* {
+  Stream<Uint8List> subscribeToCharacteristic(
+    String serviceUuid,
+    String characteristicUuid,
+  ) async* {
     final char = await _getCharacteristic(serviceUuid, characteristicUuid);
     await char.setNotifyValue(true);
     yield* char.onValueReceived.map((event) => Uint8List.fromList(event));
   }
 
   @override
-  Future<void> unsubscribeFromCharacteristic(String serviceUuid, String characteristicUuid) async {
+  Future<void> unsubscribeFromCharacteristic(
+    String serviceUuid,
+    String characteristicUuid,
+  ) async {
     final char = await _getCharacteristic(serviceUuid, characteristicUuid);
     await char.setNotifyValue(false);
   }
 
   /// 内部辅助方法：通过 UUID 获取特征值。
-  Future<BluetoothCharacteristic> _getCharacteristic(String serviceUuid, String charUuid) async {
-    final services = await _device.discoverServices();
+  Future<BluetoothCharacteristic> _getCharacteristic(
+    String serviceUuid,
+    String charUuid,
+  ) async {
+    List<BluetoothService> services = await _device.discoverServices();
+
     final service = services.firstWhere(
-      (s) => s.uuid.toString().toLowerCase() == serviceUuid.toLowerCase(),
+      (s) => s.uuid == Guid.parse(serviceUuid),
       orElse: () => throw Exception('Service not found: $serviceUuid'),
     );
     return service.characteristics.firstWhere(
-      (c) => c.uuid.toString().toLowerCase() == charUuid.toLowerCase(),
+      (c) => c.uuid == Guid.parse(charUuid),
       orElse: () => throw Exception('Characteristic not found: $charUuid'),
     );
   }

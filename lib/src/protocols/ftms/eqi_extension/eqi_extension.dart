@@ -50,48 +50,54 @@ class EqiExtensionManager {
     try {
       _errorCodeSub = _device
           .subscribeToCharacteristic(
-              FtmsConstants.serviceUuid, EqiErrorCode.uuid)
+            FtmsConstants.serviceUuid,
+            EqiErrorCode.uuid,
+          )
           .listen((data) {
-        if (data.isNotEmpty) {
-          _errorCodeController.add(EqiErrorCode.fromCode(data[0]));
-        }
-      });
-    } catch (_) {
-      // 该特性可能在此设备上不存在
-    }
+            if (data.isNotEmpty) {
+              _errorCodeController.add(EqiErrorCode.fromCode(data[0]));
+            }
+          }, onError: (_) {});
+    } catch (_) {}
 
     // 订阅模式状态通知
     try {
       _modeStateSub = _device
           .subscribeToCharacteristic(
-              FtmsConstants.serviceUuid, EqiModeState.uuid)
+            FtmsConstants.serviceUuid,
+            EqiModeState.uuid,
+          )
           .listen((data) {
-        _modeStateController.add(EqiModeState.fromBytes(data));
-      });
+            _modeStateController.add(EqiModeState.fromBytes(data));
+          }, onError: (_) {});
     } catch (_) {}
 
     // 订阅蜂鸣器开关通知
     try {
       _buzzerSub = _device
           .subscribeToCharacteristic(
-              FtmsConstants.serviceUuid, EqiBuzzerSwitch.uuid)
+            FtmsConstants.serviceUuid,
+            EqiBuzzerSwitch.uuid,
+          )
           .listen((data) {
-        if (data.isNotEmpty) {
-          _buzzerController.add(EqiBuzzerSwitch.fromByte(data[0]));
-        }
-      });
+            if (data.isNotEmpty) {
+              _buzzerController.add(EqiBuzzerSwitch.fromByte(data[0]));
+            }
+          }, onError: (_) {});
     } catch (_) {}
 
     // 订阅单位设置通知
     try {
       _unitSub = _device
           .subscribeToCharacteristic(
-              FtmsConstants.serviceUuid, EqiUnitSetting.uuid)
+            FtmsConstants.serviceUuid,
+            EqiUnitSetting.uuid,
+          )
           .listen((data) {
-        if (data.isNotEmpty) {
-          _unitController.add(EqiUnitSetting.fromByte(data[0]));
-        }
-      });
+            if (data.isNotEmpty) {
+              _unitController.add(EqiUnitSetting.fromByte(data[0]));
+            }
+          }, onError: (_) {});
     } catch (_) {}
   }
 
@@ -100,35 +106,45 @@ class EqiExtensionManager {
   /// 读取当前单位设置。
   Future<EqiUnitSetting> readUnitSetting() async {
     final data = await _device.readCharacteristic(
-        FtmsConstants.serviceUuid, EqiUnitSetting.uuid);
+      FtmsConstants.serviceUuid,
+      EqiUnitSetting.uuid,
+    );
     return EqiUnitSetting.fromByte(data.isNotEmpty ? data[0] : 0);
   }
 
   /// 读取当前运动会话的运动 ID。
   Future<EqiSportId> readSportId() async {
     final data = await _device.readCharacteristic(
-        FtmsConstants.serviceUuid, EqiSportId.uuid);
+      FtmsConstants.serviceUuid,
+      EqiSportId.uuid,
+    );
     return EqiSportId.fromBytes(data);
   }
 
   /// 读取当前错误码。
   Future<EqiErrorCode> readErrorCode() async {
     final data = await _device.readCharacteristic(
-        FtmsConstants.serviceUuid, EqiErrorCode.uuid);
+      FtmsConstants.serviceUuid,
+      EqiErrorCode.uuid,
+    );
     return EqiErrorCode.fromCode(data.isNotEmpty ? data[0] : 0);
   }
 
   /// 读取当前模式状态。
   Future<EqiModeState> readModeState() async {
     final data = await _device.readCharacteristic(
-        FtmsConstants.serviceUuid, EqiModeState.uuid);
+      FtmsConstants.serviceUuid,
+      EqiModeState.uuid,
+    );
     return EqiModeState.fromBytes(data);
   }
 
   /// 读取蜂鸣器开关状态。
   Future<EqiBuzzerSwitch> readBuzzerSwitch() async {
     final data = await _device.readCharacteristic(
-        FtmsConstants.serviceUuid, EqiBuzzerSwitch.uuid);
+      FtmsConstants.serviceUuid,
+      EqiBuzzerSwitch.uuid,
+    );
     return EqiBuzzerSwitch.fromByte(data.isNotEmpty ? data[0] : 0);
   }
 

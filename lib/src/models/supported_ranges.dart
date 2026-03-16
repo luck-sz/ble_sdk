@@ -76,8 +76,7 @@ class InclinationRange {
   }
 
   @override
-  String toString() =>
-      'InclinationRange($minimum-$maximum%, step=$increment)';
+  String toString() => 'InclinationRange($minimum-$maximum%, step=$increment)';
 }
 
 /// 支持的阻力等级范围（0x2AD6）。
@@ -151,5 +150,6 @@ class HeartRateRange {
   }
 
   @override
-  String toString() => 'HeartRateRange($minimum-${maximum}bpm, step=$increment)';
+  String toString() =>
+      'HeartRateRange($minimum-${maximum}bpm, step=$increment)';
 }

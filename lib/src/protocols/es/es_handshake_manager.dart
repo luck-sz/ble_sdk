@@ -2,7 +2,7 @@ import 'dart:math';
 import 'dart:typed_data';
 
 /// 伊启 ES 通讯握手协议经理类。
-/// 
+///
 /// 负责实现文档 V1.0 中的 4 步握手逻辑：
 /// 1. 发起对码请求 (OpCode 0x08, 0x01, RandomX)
 /// 2. 解析控制器的 6 字节响应 (0x08, 0x04, C, D, E, F)
@@ -17,7 +17,7 @@ class EsHandshakeManager {
   final Random _random = Random();
 
   /// 生成步骤 1 的对码请求包 (3 字节)。
-  /// 
+  ///
   /// 返回格式：[0x08, 0x01, 随机数X]
   Uint8List generatePairingRequest() {
     final int x = _random.nextInt(256);
@@ -25,11 +25,12 @@ class EsHandshakeManager {
   }
 
   /// 处理步骤 2 中控制器的响应，并生成步骤 3 需回传的校验包。
-  /// 
+  ///
   /// [controllerData] 应该是去掉协议头后的数据，即 [0x08, 0x04, C, D, E, F]
   Uint8List? handleControllerResponse(Uint8List controllerData) {
     if (controllerData.length < 6) return null;
-    if (controllerData[0] != opCodeHandshake || controllerData[1] != actionResponse) {
+    if (controllerData[0] != opCodeHandshake ||
+        controllerData[1] != actionResponse) {
       return null;
     }
 
@@ -43,13 +44,13 @@ class EsHandshakeManager {
 
     // 根据模式序号生成 G, H, I, J
     final passwordGroup = _generatePasswordGroupByPattern(patternIndex, a, b);
-    
+
     // 构建回传包：0x08, 0x04, G, H, I, J
     final result = Uint8List(6);
     result[0] = opCodeHandshake;
     result[1] = actionResponse;
     result.setRange(2, 6, passwordGroup);
-    
+
     return result;
   }
 
@@ -81,7 +82,7 @@ class EsHandshakeManager {
     if (data.length < 6) return false;
     final int f = data[5];
     final int index = f % 6;
-    
+
     final int c = data[2];
     final int d = data[3];
     final int e = data[4];
@@ -91,12 +92,18 @@ class EsHandshakeManager {
     // 这是一个可选的安全性增强步骤
     try {
       switch (index) {
-        case 0: return (c + d) & 0xFF == e && (c * d) & 0xFF == fVal;
-        case 1: return (c * d) & 0xFF == e && (c + d) & 0xFF == fVal;
-        case 2: return (d + e) & 0xFF == c && (d * e) & 0xFF == fVal;
-        case 3: return (d * e) & 0xFF == c && (d + e) & 0xFF == fVal;
-        case 4: return (e + fVal) & 0xFF == c && (e * fVal) & 0xFF == d;
-        case 5: return (e * fVal) & 0xFF == c && (e + fVal) & 0xFF == d;
+        case 0:
+          return (c + d) & 0xFF == e && (c * d) & 0xFF == fVal;
+        case 1:
+          return (c * d) & 0xFF == e && (c + d) & 0xFF == fVal;
+        case 2:
+          return (d + e) & 0xFF == c && (d * e) & 0xFF == fVal;
+        case 3:
+          return (d * e) & 0xFF == c && (d + e) & 0xFF == fVal;
+        case 4:
+          return (e + fVal) & 0xFF == c && (e * fVal) & 0xFF == d;
+        case 5:
+          return (e * fVal) & 0xFF == c && (e + fVal) & 0xFF == d;
       }
     } catch (_) {
       return false;
