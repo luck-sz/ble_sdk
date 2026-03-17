@@ -36,7 +36,7 @@ class WorkoutData {
   final double? averagePace;
 
   /// 总消耗热量，单位 kcal。
-  final int? totalEnergy;
+  final double? totalEnergy;
 
   /// 每小时消耗热量，单位 kcal。
   final int? energyPerHour;
@@ -143,7 +143,7 @@ class WorkoutData {
       parts.add('speed=${instantaneousSpeed}km/h');
     }
     if (totalDistance != null) parts.add('dist=${totalDistance}m');
-    if (totalEnergy != null) parts.add('energy=${totalEnergy}kcal');
+    if (totalEnergy != null) parts.add('energy=${totalEnergy!.toStringAsFixed(1)}kcal');
     if (heartRate != null) parts.add('hr=${heartRate}bpm');
     if (elapsedTime != null) parts.add('time=${elapsedTime}s');
     if (instantaneousPower != null) parts.add('power=${instantaneousPower}W');

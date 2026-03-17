@@ -33,6 +33,19 @@ class ByteUtils {
     return value > 32767 ? value - 65536 : value;
   }
 
+  /// 从 [data] 的 [offset] 位置读取一个无符号 16 位整数（大端序）。
+  static int readUint16BE(Uint8List data, int offset) {
+    if (offset + 1 >= data.length) return 0;
+    return (data[offset] << 8) | data[offset + 1];
+  }
+
+  /// 从 [data] 的 [offset] 位置读取一个有符号 16 位整数（大端序）。
+  static int readSint16BE(Uint8List data, int offset) {
+    if (offset + 1 >= data.length) return 0;
+    final value = (data[offset] << 8) | data[offset + 1];
+    return value > 32767 ? value - 65536 : value;
+  }
+
   /// 从 [data] 的 [offset] 位置读取一个无符号 24 位整数（小端序）。
   static int readUint24(Uint8List data, int offset) {
     if (offset + 2 >= data.length) return 0;
@@ -56,6 +69,11 @@ class ByteUtils {
   /// 将一个无符号 16 位整数（小端序）写入字节列表。
   static Uint8List writeUint16(int value) {
     return Uint8List.fromList([value & 0xFF, (value >> 8) & 0xFF]);
+  }
+
+  /// 将一个无符号 16 位整数（大端序）写入字节列表。
+  static Uint8List writeUint16BE(int value) {
+    return Uint8List.fromList([(value >> 8) & 0xFF, value & 0xFF]);
   }
 
   /// 将一个有符号 16 位整数（小端序）写入字节列表。

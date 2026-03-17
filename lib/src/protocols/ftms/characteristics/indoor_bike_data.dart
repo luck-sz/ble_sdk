@@ -73,11 +73,11 @@ class IndoorBikeDataParser {
     }
 
     // 位 8：消耗热量（Expended Energy）存在
-    int? totalEnergy;
+    double? totalEnergy;
     int? energyPerHour;
     int? energyPerMinute;
     if (ByteUtils.isBitSet(flags, 8)) {
-      totalEnergy = ByteUtils.readUint16(data, offset);
+      totalEnergy = ByteUtils.readUint16(data, offset).toDouble();
       offset += 2;
       energyPerHour = ByteUtils.readUint16(data, offset);
       offset += 2;
