@@ -1,19 +1,26 @@
 import 'dart:async';
-import 'dart:typed_data';
-import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'dart:developer' as developer;
+import 'dart:typed_data';
+
+import 'package:flutter_blue_plus/flutter_blue_plus.dart';
+
 import '../core/ble_device.dart';
 
-/// 使用 flutter_blue_plus 库实现的 BleDevice。
-///
-/// 适合 5w+ 日活的商业项目，内部集成了 MTU 设置和基础的状态转换。
+/// BleDevice implementation based on flutter_blue_plus.
 class FbpBleDevice extends BleDevice {
   static const String _tag = "BleSdk";
+  static const int _connectMaxAttempts = 2;
+  static const Duration _connectRetryDelay = Duration(milliseconds: 800);
+
   final BluetoothDevice _device;
   final StreamController<BleConnectionState> _connectionStateController =
       StreamController<BleConnectionState>.broadcast();
+  final Map<String, int> _notifyRefCounts = {};
+
   StreamSubscription? _stateSubscription;
+  List<BluetoothService>? _services;
   BleConnectionState _lastKnownState = BleConnectionState.disconnected;
+  bool _disposed = false;
 
   FbpBleDevice(this._device) {
     _initConnectionStateListener();
@@ -21,15 +28,22 @@ class FbpBleDevice extends BleDevice {
 
   void _initConnectionStateListener() {
     _stateSubscription = _device.connectionState.listen((state) {
+      if (_disposed) return;
       developer.log("[$_tag] Connection state changed: $state", name: _tag);
       switch (state) {
         case BluetoothConnectionState.connected:
           _lastKnownState = BleConnectionState.connected;
-          _connectionStateController.add(BleConnectionState.connected);
+          if (!_connectionStateController.isClosed) {
+            _connectionStateController.add(BleConnectionState.connected);
+          }
           break;
         case BluetoothConnectionState.disconnected:
           _lastKnownState = BleConnectionState.disconnected;
-          _connectionStateController.add(BleConnectionState.disconnected);
+          _services = null;
+          _notifyRefCounts.clear();
+          if (!_connectionStateController.isClosed) {
+            _connectionStateController.add(BleConnectionState.disconnected);
+          }
           break;
         default:
           break;
@@ -53,8 +67,11 @@ class FbpBleDevice extends BleDevice {
 
   @override
   Future<void> connect({Duration? timeout}) async {
+    if (_disposed) {
+      throw StateError('FbpBleDevice has been disposed.');
+    }
     developer.log("[$_tag] Connecting to device: $deviceId", name: _tag);
-    // 商业项目建议：连接前先停止扫描，防止 status 133
+
     try {
       if (FlutterBluePlus.isScanningNow) {
         developer.log("[$_tag] Stopping scan before connection", name: _tag);
@@ -62,18 +79,31 @@ class FbpBleDevice extends BleDevice {
       }
     } catch (_) {}
 
-    try {
-      await _device.connect(
-        timeout: timeout ?? const Duration(seconds: 15),
-        autoConnect: false,
-      );
-      developer.log("[$_tag] Connected successfully", name: _tag);
-    } catch (e) {
-      developer.log("[$_tag] Connection failed: $e", name: _tag, error: e);
-      rethrow;
+    for (var attempt = 1; attempt <= _connectMaxAttempts; attempt++) {
+      try {
+        await _device.connect(
+          timeout: timeout ?? const Duration(seconds: 15),
+          autoConnect: false,
+        );
+        developer.log(
+          "[$_tag] Connected successfully on attempt $attempt",
+          name: _tag,
+        );
+        break;
+      } catch (e) {
+        final retryable = _isRetryableConnectError(e);
+        developer.log(
+          "[$_tag] Connection attempt $attempt failed (retryable=$retryable): $e",
+          name: _tag,
+          error: e,
+        );
+        if (!retryable || attempt == _connectMaxAttempts) {
+          rethrow;
+        }
+        await Future.delayed(_connectRetryDelay);
+      }
     }
 
-    // 连接成功后建议请求 MTU 以支持 FTMS 大数据包
     try {
       developer.log("[$_tag] Requesting MTU 512", name: _tag);
       await _device.requestMtu(512);
@@ -84,29 +114,36 @@ class FbpBleDevice extends BleDevice {
 
   @override
   Future<void> disconnect() async {
-    await _device.disconnect();
+    try {
+      await _device.disconnect();
+    } finally {
+      _services = null;
+      _notifyRefCounts.clear();
+    }
   }
-
-  List<BluetoothService>? _services;
 
   @override
   Future<List<BleServiceInfo>> discoverServices() async {
     _services = await _device.discoverServices();
-    return _services!.map((s) {
-      return BleServiceInfo(
-        uuid: s.uuid.toString().toLowerCase(),
-        characteristics: s.characteristics.map((c) {
-          return BleCharacteristicInfo(
-            uuid: c.uuid.toString().toLowerCase(),
-            canRead: c.properties.read,
-            canWrite: c.properties.write,
-            canWriteWithoutResponse: c.properties.writeWithoutResponse,
-            canNotify: c.properties.notify,
-            canIndicate: c.properties.indicate,
-          );
-        }).toList(),
-      );
-    }).toList();
+    return _services!
+        .map(
+          (s) => BleServiceInfo(
+            uuid: s.uuid.toString().toLowerCase(),
+            characteristics: s.characteristics
+                .map(
+                  (c) => BleCharacteristicInfo(
+                    uuid: c.uuid.toString().toLowerCase(),
+                    canRead: c.properties.read,
+                    canWrite: c.properties.write,
+                    canWriteWithoutResponse: c.properties.writeWithoutResponse,
+                    canNotify: c.properties.notify,
+                    canIndicate: c.properties.indicate,
+                  ),
+                )
+                .toList(),
+          ),
+        )
+        .toList();
   }
 
   @override
@@ -126,13 +163,10 @@ class FbpBleDevice extends BleDevice {
     bool withResponse = true,
   }) async {
     final char = await _getCharacteristic(serviceUuid, characteristicUuid);
-    
-    // 商业固件兼容性处理：如果声明不支持 WriteWithoutResponse，强制开启 withResponse
-    bool useResponse = withResponse;
+    var useResponse = withResponse;
     if (!char.properties.writeWithoutResponse && char.properties.write) {
       useResponse = true;
     }
-    
     await char.write(data, withoutResponse: !useResponse);
   }
 
@@ -140,11 +174,39 @@ class FbpBleDevice extends BleDevice {
   Stream<Uint8List> subscribeToCharacteristic(
     String serviceUuid,
     String characteristicUuid,
-  ) async* {
-    final char = await _getCharacteristic(serviceUuid, characteristicUuid);
-    // 必须等待通知开启成功
-    await char.setNotifyValue(true);
-    yield* char.onValueReceived.map((event) => Uint8List.fromList(event));
+  ) {
+    return Stream<Uint8List>.multi((controller) async {
+      if (_disposed) {
+        controller.addError(StateError('FbpBleDevice has been disposed.'));
+        await controller.close();
+        return;
+      }
+      final char = await _getCharacteristic(serviceUuid, characteristicUuid);
+      final key = _notifyKey(serviceUuid, characteristicUuid);
+      final current = _notifyRefCounts[key] ?? 0;
+      if (current == 0) {
+        await char.setNotifyValue(true);
+      }
+      _notifyRefCounts[key] = current + 1;
+      final sub = char.onValueReceived.listen(
+        (event) => controller.add(Uint8List.fromList(event)),
+        onError: controller.addError,
+      );
+      controller.onCancel = () async {
+        await sub.cancel();
+        final remaining = (_notifyRefCounts[key] ?? 1) - 1;
+        if (remaining <= 0) {
+          _notifyRefCounts.remove(key);
+          try {
+            await char.setNotifyValue(false);
+          } catch (e) {
+            developer.log("[$_tag] Disable notify failed for $key: $e", name: _tag);
+          }
+        } else {
+          _notifyRefCounts[key] = remaining;
+        }
+      };
+    });
   }
 
   @override
@@ -153,10 +215,10 @@ class FbpBleDevice extends BleDevice {
     String characteristicUuid,
   ) async {
     final char = await _getCharacteristic(serviceUuid, characteristicUuid);
+    _notifyRefCounts.remove(_notifyKey(serviceUuid, characteristicUuid));
     await char.setNotifyValue(false);
   }
 
-  /// 内部辅助方法：通过 UUID 获取特征值。
   Future<BluetoothCharacteristic> _getCharacteristic(
     String serviceUuid,
     String charUuid,
@@ -176,7 +238,7 @@ class FbpBleDevice extends BleDevice {
         throw Exception('Service not found: $serviceUuid');
       },
     );
-    
+
     return service.characteristics.firstWhere(
       (c) => c.uuid == cGuid,
       orElse: () {
@@ -189,9 +251,26 @@ class FbpBleDevice extends BleDevice {
     );
   }
 
-  /// 释放相关监听资源。
-  void dispose() {
-    _stateSubscription?.cancel();
-    _connectionStateController.close();
+  Future<void> dispose() async {
+    if (_disposed) return;
+    _disposed = true;
+    _services = null;
+    _notifyRefCounts.clear();
+    await _stateSubscription?.cancel();
+    _stateSubscription = null;
+    if (!_connectionStateController.isClosed) {
+      await _connectionStateController.close();
+    }
   }
+
+  bool _isRetryableConnectError(Object error) {
+    final msg = error.toString().toLowerCase();
+    return msg.contains('133') ||
+        msg.contains('timeout') ||
+        msg.contains('temporar') ||
+        msg.contains('busy');
+  }
+
+  String _notifyKey(String serviceUuid, String characteristicUuid) =>
+      '${serviceUuid.toLowerCase()}|${characteristicUuid.toLowerCase()}';
 }
