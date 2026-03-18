@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:typed_data';
+import 'dart:developer' as developer;
 
 import '../../core/ble_device.dart';
 import '../../core/ble_protocol.dart';
@@ -19,6 +20,7 @@ import 'es_handshake_manager.dart';
 
 /// ES (EQI Standard) 协议完整实现。
 class EsProtocol implements BleProtocol {
+  static const String _tag = 'BleSdk:EsProtocol';
   BleDevice? _device;
   bool _initialized = false;
   bool _handshakeCompleted = false;
@@ -66,7 +68,7 @@ class EsProtocol implements BleProtocol {
   };
 
   @override
-  bool get isInitialized => _initialized && _device != null;
+  bool get isInitialized => _initialized && _device != null && _handshakeCompleted;
 
   @override
   Future<void> initialize(BleDevice device) async {
@@ -93,29 +95,41 @@ class EsProtocol implements BleProtocol {
       // 降低超时等待时间到 3秒，提升重试效率
       _handshakeCompleted = await _handshakeCompleter!.future.timeout(const Duration(seconds: 3));
     } catch (e) {
-      print('[EsProtocol] Handshake TIMEOUT or failed: $e');
+      developer.log('[EsProtocol] Handshake TIMEOUT or failed: $e', name: _tag);
       _handshakeCompleted = false;
     }
 
     _initialized = true;
 
     // 开启同步引擎 (0xA0)
-    _syncTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (_handshakeCompleted && isInitialized) {
-        EsControlPoint.syncStatus(_device!, _currentMachineStatus, _currentSpeed, _currentIncline);
+    _syncTimer = Timer.periodic(const Duration(seconds: 1), (timer) async {
+      if (_handshakeCompleted && isInitialized && _device != null) {
+        try {
+          await EsControlPoint.syncStatus(
+            _device!,
+            _currentMachineStatus,
+            _currentSpeed,
+            _currentIncline,
+          );
+        } catch (e) {
+          developer.log('[EsProtocol] Periodic sync failed: $e', name: _tag);
+        }
       }
     });
   }
 
   /// 步骤 1：APP 发起对码请求 (A9 08 02 01 X CS)
   Future<void> _requestHandshake() async {
-    print('[EsProtocol] Initiating Step 1: Handshake Request...');
+    developer.log('[EsProtocol] Initiating Step 1: Handshake Request...', name: _tag);
+    if (_device == null) {
+      throw StateError('BLE device is not available for handshake');
+    }
     Uint8List hsData = _handshakeManager.generatePairingRequest();
     int opCode = hsData[0];
     List<int> payload = hsData.sublist(1);
     
     Uint8List packet = EsControlPoint.buildPacket(opCode, payload);
-    await _device?.writeCharacteristic(
+    await _device!.writeCharacteristic(
       EsConstants.serviceUuid,
       EsConstants.writeUuid,
       packet,
@@ -174,12 +188,12 @@ class EsProtocol implements BleProtocol {
         // 对码响应或错误
         if (payload.isEmpty) break;
         
-        print('[EsProtocol] Received Handshake Packet: $payload');
+        developer.log('[EsProtocol] Received Handshake Packet: $payload', name: _tag);
 
         // 处理错误信号: 08 01 FF (Payload: 01 FF)
         bool isFailure = (payload.length >= 2 && payload[0] == EsConstants.subOpPairRequest && payload[1] == 0xFF);
         if (isFailure) {
-           print('[EsProtocol] Handshake Failure signal (0x01 0xFF) detected.');
+           developer.log('[EsProtocol] Handshake Failure signal (0x01 0xFF) detected.', name: _tag);
            if (_handshakeCompleter != null && !_handshakeCompleter!.isCompleted) {
              _handshakeCompleter!.complete(false);
            }
@@ -194,7 +208,7 @@ class EsProtocol implements BleProtocol {
             fullHandshakePayload.setRange(1, fullHandshakePayload.length, payload);
 
             if (_handshakeManager.verifyConsoleResponse(fullHandshakePayload)) {
-               print('[EsProtocol] Step 2 Verify SUCCESS. PatternIndex: ${_handshakeManager.lastSentX != null ? _handshakeManager.lastSentX! % 6 : 'N/A'}');
+               developer.log('[EsProtocol] Step 2 Verify SUCCESS. PatternIndex: ${_handshakeManager.lastSentX != null ? _handshakeManager.lastSentX! % 6 : 'N/A'}', name: _tag);
                
                Uint8List? verificationPacket = _handshakeManager.generateValidationReply(fullHandshakePayload);
                if (verificationPacket != null) {
@@ -202,14 +216,23 @@ class EsProtocol implements BleProtocol {
                   List<int> resPayload = verificationPacket.sublist(1);
                   Uint8List pkt = EsControlPoint.buildPacket(resOpCode, resPayload);
                   
-                  print('[EsProtocol] Sending Step 3 Validation Reply: $resPayload');
+                  developer.log('[EsProtocol] Sending Step 3 Validation Reply: $resPayload', name: _tag);
                   await _device?.writeCharacteristic(EsConstants.serviceUuid, EsConstants.writeUuid, pkt, withResponse: true);
                   
                   // 开始发送心跳包 (0xA0) 以告知正在对接
-                  EsControlPoint.syncStatus(_device!, _currentMachineStatus, _currentSpeed, _currentIncline);
+                  try {
+                    await EsControlPoint.syncStatus(
+                      _device!,
+                      _currentMachineStatus,
+                      _currentSpeed,
+                      _currentIncline,
+                    );
+                  } catch (e) {
+                    developer.log('[EsProtocol] Immediate sync after handshake failed: $e', name: _tag);
+                  }
                }
             } else {
-               print('[EsProtocol] Step 2 Verify FAILED. Data mismatch with expected patterns.');
+               developer.log('[EsProtocol] Step 2 Verify FAILED. Data mismatch with expected patterns.', name: _tag);
                if (_handshakeCompleter != null && !_handshakeCompleter!.isCompleted) {
                  _handshakeCompleter!.complete(false);
                }
@@ -219,7 +242,7 @@ class EsProtocol implements BleProtocol {
 
       case EsConstants.rspWorkoutData: // 0x02
         if (!_handshakeCompleted) {
-          print('[EsProtocol] Received Step 4 Confirm (0x02 Heartbeat). Handshake SUCCESS!');
+          developer.log('[EsProtocol] Received Step 4 Confirm (0x02 Heartbeat). Handshake SUCCESS!', name: _tag);
           _handshakeCompleted = true;
           if (_handshakeCompleter != null && !_handshakeCompleter!.isCompleted) {
              _handshakeCompleter!.complete(true);
@@ -321,7 +344,7 @@ class EsProtocol implements BleProtocol {
     
     // 如果尚未握手成功且不是请求控制命令，记录警告但尝试发送
     if (!_handshakeCompleted && command.opCode != ControlOpCode.requestControl) {
-      print('[EsProtocol] Warning: Sending command ${command.opCode} before handshake completed.');
+      developer.log('[EsProtocol] Warning: Sending command ${command.opCode} before handshake completed.', name: _tag);
     }
     
     // 如果是 requestControl 指令，且握手已经成功，我们直接模拟返回成功

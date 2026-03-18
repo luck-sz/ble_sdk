@@ -101,6 +101,7 @@ class EfcDataParser {
       statusCode: MachineStatusCode.rfu,
       newTargetSpeed: currentSpeed,
       newTargetIncline: currentIncline,
+      rawParameter: Uint8List.fromList([statusByte]),
     );
   }
 

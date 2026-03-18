@@ -96,11 +96,28 @@ class FtmsProtocol implements BleProtocol {
       _controlPoint.handleControlPointResponse(data);
     });
 
+    final discoveredServices = await _device!.discoverServices();
+    final availableUuids = <String>{};
+    for (final service in discoveredServices) {
+      if (service.uuid.toLowerCase() == FtmsConstants.serviceUuid.toLowerCase()) {
+        for (final c in service.characteristics) {
+          availableUuids.add(c.uuid.toLowerCase());
+        }
+      }
+    }
+
     // 5. 根据设备类型订阅运动数据
     // 注意：实际应用中这里建议通过扫描结果或 Feature 读取结果动态决定订阅内容
     for (final machineType in supportedMachineTypes) {
       final uuid = FtmsDataParser.getDataCharacteristicUuid(machineType);
       if (uuid != null) {
+        if (!availableUuids.contains(uuid.toLowerCase())) {
+          developer.log(
+            "[$_tag] Skip data characteristic not exposed by device: $uuid ($machineType)",
+            name: _tag,
+          );
+          continue;
+        }
         await _subscribeTo(uuid, (data) {
           final workoutData = FtmsDataParser.parseWorkoutData(uuid, data);
           if (workoutData != null) {

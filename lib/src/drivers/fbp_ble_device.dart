@@ -169,7 +169,10 @@ class FbpBleDevice extends BleDevice {
     final service = _services!.firstWhere(
       (s) => s.uuid == sGuid,
       orElse: () {
-        print('[FbpBleDevice] Service NOT FOUND: $serviceUuid. Available services: ${_services!.map((e) => e.uuid).toList()}');
+        developer.log(
+          '[FbpBleDevice] Service NOT FOUND: $serviceUuid. Available services: ${_services!.map((e) => e.uuid).toList()}',
+          name: _tag,
+        );
         throw Exception('Service not found: $serviceUuid');
       },
     );
@@ -177,7 +180,10 @@ class FbpBleDevice extends BleDevice {
     return service.characteristics.firstWhere(
       (c) => c.uuid == cGuid,
       orElse: () {
-        print('[FbpBleDevice] Characteristic NOT FOUND: $charUuid in service $serviceUuid. Available: ${service.characteristics.map((e) => e.uuid).toList()}');
+        developer.log(
+          '[FbpBleDevice] Characteristic NOT FOUND: $charUuid in service $serviceUuid. Available: ${service.characteristics.map((e) => e.uuid).toList()}',
+          name: _tag,
+        );
         throw Exception('Characteristic not found: $charUuid');
       },
     );

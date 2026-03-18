@@ -1,3 +1,4 @@
+import 'dart:developer' as developer;
 import 'core/ble_device.dart';
 import 'core/ble_protocol.dart';
 import 'models/advertising_data.dart';
@@ -8,6 +9,7 @@ import 'protocols/ftms/ftms_protocol.dart';
 
 /// 协议注册中心，负责根据设备通信能力匹配并创建对应的协议处理器。
 class ProtocolRegistry {
+  static const String _tag = 'BleSdk:ProtocolRegistry';
   ProtocolRegistry._();
 
   /// 支持的所有协议标识符列表。
@@ -64,15 +66,15 @@ class ProtocolRegistry {
         return uuidStr.contains('fff0');
       });
       if (hasEs) {
-        print('[ProtocolRegistry] Detected ES Protocol device.');
+        developer.log('[ProtocolRegistry] Detected ES Protocol device.', name: _tag);
         return EsProtocol();
       }
 
     } catch (e) {
-      print('[ProtocolRegistry] Protocol resolution error: $e');
+      developer.log('[ProtocolRegistry] Protocol resolution error: $e', name: _tag);
     }
 
-    print('[ProtocolRegistry] No matching protocol found for device features.');
+    developer.log('[ProtocolRegistry] No matching protocol found for device features.', name: _tag);
     return null; 
   }
 

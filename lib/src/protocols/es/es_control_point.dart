@@ -1,10 +1,12 @@
 import 'dart:typed_data';
+import 'dart:developer' as developer;
 import '../../core/ble_device.dart';
 import '../../core/byte_utils.dart';
 import '../../models/control_command.dart';
 import 'es_constants.dart';
 
 class EsControlPoint {
+  static const String _tag = 'BleSdk:EsControlPoint';
   /// 生成一个基础的数据包
   static Uint8List buildPacket(int opCode, List<int> payload) {
     int length = payload.length;
@@ -20,7 +22,10 @@ class EsControlPoint {
     bytes.add(checksum);
 
     final res = Uint8List.fromList(bytes);
-    print('[EsControlPoint] DEBUG SEND HEX: ${bytes.map((e) => e.toRadixString(16).padLeft(2, "0").toUpperCase()).join(" ")}');
+    developer.log(
+      '[EsControlPoint] DEBUG SEND HEX: ${bytes.map((e) => e.toRadixString(16).padLeft(2, "0").toUpperCase()).join(" ")}',
+      name: _tag,
+    );
     return res;
   }
 
@@ -90,7 +95,7 @@ class EsControlPoint {
           requestOpCode: command.opCode,
           resultCode: ControlResultCode.opCodeNotSupported);
     } catch (e) {
-      print('[EsControlPoint] Error sending command ${command.opCode}: $e');
+      developer.log('[EsControlPoint] Error sending command ${command.opCode}: $e', name: _tag);
       return ControlResponse(
           requestOpCode: command.opCode,
           resultCode: ControlResultCode.operationFailed);
