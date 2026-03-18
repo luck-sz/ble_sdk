@@ -87,15 +87,17 @@ class FbpBleDevice extends BleDevice {
     await _device.disconnect();
   }
 
+  List<BluetoothService>? _services;
+
   @override
   Future<List<BleServiceInfo>> discoverServices() async {
-    final services = await _device.discoverServices();
-    return services.map((s) {
+    _services = await _device.discoverServices();
+    return _services!.map((s) {
       return BleServiceInfo(
-        uuid: s.uuid.toString(),
+        uuid: s.uuid.toString().toLowerCase(),
         characteristics: s.characteristics.map((c) {
           return BleCharacteristicInfo(
-            uuid: c.uuid.toString(),
+            uuid: c.uuid.toString().toLowerCase(),
             canRead: c.properties.read,
             canWrite: c.properties.write,
             canWriteWithoutResponse: c.properties.writeWithoutResponse,
@@ -124,7 +126,14 @@ class FbpBleDevice extends BleDevice {
     bool withResponse = true,
   }) async {
     final char = await _getCharacteristic(serviceUuid, characteristicUuid);
-    await char.write(data, withoutResponse: !withResponse);
+    
+    // 商业固件兼容性处理：如果声明不支持 WriteWithoutResponse，强制开启 withResponse
+    bool useResponse = withResponse;
+    if (!char.properties.writeWithoutResponse && char.properties.write) {
+      useResponse = true;
+    }
+    
+    await char.write(data, withoutResponse: !useResponse);
   }
 
   @override
@@ -133,6 +142,7 @@ class FbpBleDevice extends BleDevice {
     String characteristicUuid,
   ) async* {
     final char = await _getCharacteristic(serviceUuid, characteristicUuid);
+    // 必须等待通知开启成功
     await char.setNotifyValue(true);
     yield* char.onValueReceived.map((event) => Uint8List.fromList(event));
   }
@@ -151,15 +161,25 @@ class FbpBleDevice extends BleDevice {
     String serviceUuid,
     String charUuid,
   ) async {
-    List<BluetoothService> services = await _device.discoverServices();
+    _services ??= await _device.discoverServices();
 
-    final service = services.firstWhere(
-      (s) => s.uuid == Guid.parse(serviceUuid),
-      orElse: () => throw Exception('Service not found: $serviceUuid'),
+    final sGuid = Guid.parse(serviceUuid);
+    final cGuid = Guid.parse(charUuid);
+
+    final service = _services!.firstWhere(
+      (s) => s.uuid == sGuid,
+      orElse: () {
+        print('[FbpBleDevice] Service NOT FOUND: $serviceUuid. Available services: ${_services!.map((e) => e.uuid).toList()}');
+        throw Exception('Service not found: $serviceUuid');
+      },
     );
+    
     return service.characteristics.firstWhere(
-      (c) => c.uuid == Guid.parse(charUuid),
-      orElse: () => throw Exception('Characteristic not found: $charUuid'),
+      (c) => c.uuid == cGuid,
+      orElse: () {
+        print('[FbpBleDevice] Characteristic NOT FOUND: $charUuid in service $serviceUuid. Available: ${service.characteristics.map((e) => e.uuid).toList()}');
+        throw Exception('Characteristic not found: $charUuid');
+      },
     );
   }
 
