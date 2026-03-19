@@ -78,7 +78,8 @@ class EsProtocol implements BleProtocol {
         .listen(_onDataReceived);
     _subscriptions.add(subscription);
 
-    await Future.delayed(const Duration(milliseconds: 500));
+    // 在订阅后增加稳定期，防止 iOS 指令冲突导致握手失败
+    await Future.delayed(const Duration(milliseconds: 1000));
 
     _handshakeCompleter = Completer<bool>();
     await _requestHandshake();
