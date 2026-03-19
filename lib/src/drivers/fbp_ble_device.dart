@@ -225,11 +225,25 @@ class FbpBleDevice extends BleDevice {
   ) async {
     _services ??= await _device.discoverServices();
 
-    final sGuid = Guid.parse(serviceUuid);
-    final cGuid = Guid.parse(charUuid);
+    final sHex = serviceUuid.toLowerCase().replaceAll('-', '');
+    final cHex = charUuid.toLowerCase().replaceAll('-', '');
+
+    // 辅助匹配方法
+    bool isMatch(String targetHex, Guid fbpGuid) {
+      final fbpHex = fbpGuid.toString().toLowerCase().replaceAll('-', '');
+      if (targetHex == fbpHex) return true;
+      // 兼容 16-bit 匹配 (xxxx vs 0000xxxx...)
+      if (targetHex.length == 32 && fbpHex.length == 4) {
+        return targetHex.substring(4, 8) == fbpHex;
+      }
+      if (fbpHex.length == 32 && targetHex.length == 4) {
+        return fbpHex.substring(4, 8) == targetHex;
+      }
+      return false;
+    }
 
     final service = _services!.firstWhere(
-      (s) => s.uuid == sGuid,
+      (s) => isMatch(sHex, s.uuid),
       orElse: () {
         developer.log(
           '[FbpBleDevice] Service NOT FOUND: $serviceUuid. Available services: ${_services!.map((e) => e.uuid).toList()}',
@@ -240,7 +254,7 @@ class FbpBleDevice extends BleDevice {
     );
 
     return service.characteristics.firstWhere(
-      (c) => c.uuid == cGuid,
+      (c) => isMatch(cHex, c.uuid),
       orElse: () {
         developer.log(
           '[FbpBleDevice] Characteristic NOT FOUND: $charUuid in service $serviceUuid. Available: ${service.characteristics.map((e) => e.uuid).toList()}',
