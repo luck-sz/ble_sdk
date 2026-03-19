@@ -8,9 +8,9 @@ class CrossTrainerDataParser {
   CrossTrainerDataParser._();
 
   /// 从原始 BLE 通知字节中解析椭圆机数据。
-  static WorkoutData parse(Uint8List data) {
+  static WorkoutData parse(Uint8List data, {MachineType? machineType}) {
     if (data.length < 3) {
-      return WorkoutData(machineType: MachineType.crossTrainer);
+      return WorkoutData(machineType: machineType ?? MachineType.crossTrainer);
     }
 
     // 椭圆机使用 24 位标志字段
@@ -34,66 +34,91 @@ class CrossTrainerDataParser {
     // 位 2：总距离（Total Distance）存在
     int? totalDistance;
     if (ByteUtils.isBitSet(flags, 2)) {
-      totalDistance = ByteUtils.readUint24(data, offset);
-      offset += 3;
+      if (offset + 3 <= data.length) {
+        totalDistance = ByteUtils.readUint24(data, offset);
+        offset += 3;
+      } else if (offset + 2 <= data.length) {
+        totalDistance = ByteUtils.readUint16(data, offset);
+        offset += 2;
+      }
     }
 
     // 位 3：步数（Step Count）存在
     int? stepsPerMinute;
     int? averageStepRate;
     if (ByteUtils.isBitSet(flags, 3)) {
-      stepsPerMinute = ByteUtils.readUint16(data, offset);
-      offset += 2;
-      averageStepRate = ByteUtils.readUint16(data, offset);
-      offset += 2;
+      if (offset + 2 <= data.length) {
+        stepsPerMinute = ByteUtils.readUint16(data, offset);
+        offset += 2;
+      }
+      if (offset + 2 <= data.length) {
+        averageStepRate = ByteUtils.readUint16(data, offset);
+        offset += 2;
+      }
     }
 
     // 位 4：步幅计数（Stride Count）存在
     int? strideCount;
     if (ByteUtils.isBitSet(flags, 4)) {
-      strideCount = ByteUtils.readUint16(data, offset);
-      offset += 2;
+      if (offset + 2 <= data.length) {
+        strideCount = ByteUtils.readUint16(data, offset);
+        offset += 2;
+      }
     }
 
     // 位 5：海拔增益（Elevation Gain）存在
     double? positiveElevGain;
     double? negativeElevGain;
     if (ByteUtils.isBitSet(flags, 5)) {
-      positiveElevGain = ByteUtils.readUint16(data, offset) / 10.0;
-      offset += 2;
-      negativeElevGain = ByteUtils.readUint16(data, offset) / 10.0;
-      offset += 2;
+      if (offset + 2 <= data.length) {
+        positiveElevGain = ByteUtils.readUint16(data, offset) / 10.0;
+        offset += 2;
+      }
+      if (offset + 2 <= data.length) {
+        negativeElevGain = ByteUtils.readUint16(data, offset) / 10.0;
+        offset += 2;
+      }
     }
 
     // 位 6：坡度和坡道角度（Inclination and Ramp Angle）存在
     double? inclination;
     double? rampAngle;
     if (ByteUtils.isBitSet(flags, 6)) {
-      inclination = ByteUtils.readSint16(data, offset) / 10.0;
-      offset += 2;
-      rampAngle = ByteUtils.readSint16(data, offset) / 10.0;
-      offset += 2;
+      if (offset + 2 <= data.length) {
+        inclination = ByteUtils.readSint16(data, offset) / 10.0;
+        offset += 2;
+      }
+      if (offset + 2 <= data.length) {
+        rampAngle = ByteUtils.readSint16(data, offset) / 10.0;
+        offset += 2;
+      }
     }
 
     // 位 7：阻力等级（Resistance Level）存在
     double? resistanceLevel;
     if (ByteUtils.isBitSet(flags, 7)) {
-      resistanceLevel = ByteUtils.readSint16(data, offset) / 10.0;
-      offset += 2;
+      if (offset + 2 <= data.length) {
+        resistanceLevel = ByteUtils.readSint16(data, offset) / 10.0;
+        offset += 2;
+      }
     }
 
     // 位 8：瞬时功率（Instantaneous Power）存在
     int? instantaneousPower;
     if (ByteUtils.isBitSet(flags, 8)) {
-      instantaneousPower = ByteUtils.readSint16(data, offset);
-      offset += 2;
+      if (offset + 2 <= data.length) {
+        instantaneousPower = ByteUtils.readSint16(data, offset);
+        offset += 2;
+      }
     }
 
     // 位 9：平均功率（Average Power）存在
     int? averagePower;
     if (ByteUtils.isBitSet(flags, 9)) {
-      averagePower = ByteUtils.readSint16(data, offset);
-      offset += 2;
+      if (offset + 2 <= data.length) {
+        averagePower = ByteUtils.readSint16(data, offset);
+        offset += 2;
+      }
     }
 
     // 位 10：消耗热量（Expended Energy）存在
@@ -101,12 +126,18 @@ class CrossTrainerDataParser {
     int? energyPerHour;
     int? energyPerMinute;
     if (ByteUtils.isBitSet(flags, 10)) {
-      totalEnergy = ByteUtils.readUint16(data, offset).toDouble();
-      offset += 2;
-      energyPerHour = ByteUtils.readUint16(data, offset);
-      offset += 2;
-      energyPerMinute = ByteUtils.readUint8(data, offset);
-      offset += 1;
+      if (offset + 2 <= data.length) {
+        totalEnergy = ByteUtils.readUint16(data, offset).toDouble();
+        offset += 2;
+      }
+      if (offset + 2 <= data.length) {
+        energyPerHour = ByteUtils.readUint16(data, offset);
+        offset += 2;
+      }
+      if (offset + 1 <= data.length) {
+        energyPerMinute = ByteUtils.readUint8(data, offset);
+        offset += 1;
+      }
     }
 
     // 位 11：心率（Heart Rate）存在
@@ -138,7 +169,7 @@ class CrossTrainerDataParser {
     }
 
     return WorkoutData(
-      machineType: MachineType.crossTrainer,
+      machineType: machineType ?? MachineType.crossTrainer,
       instantaneousSpeed: instantaneousSpeed,
       averageSpeed: averageSpeed,
       totalDistance: totalDistance,

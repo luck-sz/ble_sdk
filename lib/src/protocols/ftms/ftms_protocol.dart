@@ -99,7 +99,11 @@ class FtmsProtocol implements BleProtocol {
     final discoveredServices = await _device!.discoverServices();
     final availableUuids = <String>{};
     for (final service in discoveredServices) {
-      if (service.uuid.toLowerCase() == FtmsConstants.serviceUuid.toLowerCase()) {
+      final sUuid = service.uuid.toLowerCase().replaceAll('-', '');
+      final ftmsUuid = FtmsConstants.serviceUuid.toLowerCase().replaceAll('-', '');
+      
+      // 增强 UUID 匹配鲁棒性（处理 16-bit vs 128-bit）
+      if (sUuid == ftmsUuid || sUuid.contains(ftmsUuid.substring(4, 8))) {
         for (final c in service.characteristics) {
           availableUuids.add(c.uuid.toLowerCase());
         }
@@ -107,19 +111,30 @@ class FtmsProtocol implements BleProtocol {
     }
 
     // 5. 根据设备类型订阅运动数据
-    // 注意：实际应用中这里建议通过扫描结果或 Feature 读取结果动态决定订阅内容
+    // 记录已订阅的 UUID，防止重复订阅（如 treadmill 和 walkingMachine 共享 0x2ACD）
+    final subscribedUuids = <String>{};
+
     for (final machineType in supportedMachineTypes) {
       final uuid = FtmsDataParser.getDataCharacteristicUuid(machineType);
       if (uuid != null) {
-        if (!availableUuids.contains(uuid.toLowerCase())) {
+        final lowerUuid = uuid.toLowerCase();
+        
+        // 检查设备是否提供此特性
+        if (!availableUuids.any((e) => e.contains(lowerUuid.replaceAll('-', '').substring(4, 8)))) {
           developer.log(
             "[$_tag] Skip data characteristic not exposed by device: $uuid ($machineType)",
             name: _tag,
           );
           continue;
         }
+
+        // 避免重复订阅
+        if (subscribedUuids.contains(lowerUuid)) continue;
+        subscribedUuids.add(lowerUuid);
+
         await _subscribeTo(uuid, (data) {
-          final workoutData = FtmsDataParser.parseWorkoutData(uuid, data);
+          // 这里的 machineType 仅作为解析时的提示
+          final workoutData = FtmsDataParser.parseWorkoutData(uuid, data, machineType: machineType);
           if (workoutData != null) {
             _workoutDataController.add(workoutData);
           }

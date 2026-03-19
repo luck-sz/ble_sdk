@@ -16,18 +16,19 @@ class FtmsDataParser {
   /// 根据给定的特性 UUID 和原始数据解析运动数据。
   static WorkoutData? parseWorkoutData(
     String characteristicUuid,
-    Uint8List data,
-  ) {
+    Uint8List data, {
+    MachineType? machineType,
+  }) {
     final uuid = characteristicUuid.toLowerCase();
 
     if (uuid == FtmsConstants.treadmillDataUuid) {
-      return TreadmillDataParser.parse(data);
+      return TreadmillDataParser.parse(data, machineType: machineType);
     } else if (uuid == FtmsConstants.crossTrainerDataUuid) {
-      return CrossTrainerDataParser.parse(data);
+      return CrossTrainerDataParser.parse(data, machineType: machineType);
     } else if (uuid == FtmsConstants.rowerDataUuid) {
-      return RowerDataParser.parse(data);
+      return RowerDataParser.parse(data, machineType: machineType);
     } else if (uuid == FtmsConstants.indoorBikeDataUuid) {
-      return IndoorBikeDataParser.parse(data);
+      return IndoorBikeDataParser.parse(data, machineType: machineType);
     }
 
     return null;

@@ -8,9 +8,9 @@ class RowerDataParser {
   RowerDataParser._();
 
   /// 从原始 BLE 通知字节中解析划船机数据。
-  static WorkoutData parse(Uint8List data) {
+  static WorkoutData parse(Uint8List data, {MachineType? machineType}) {
     if (data.length < 2) {
-      return WorkoutData(machineType: MachineType.rower);
+      return WorkoutData(machineType: machineType ?? MachineType.rower);
     }
 
     final flags = ByteUtils.readUint16(data, 0);
@@ -20,59 +20,80 @@ class RowerDataParser {
     double? strokeRate;
     int? strokeCount;
     if (!ByteUtils.isBitSet(flags, 0)) {
-      strokeRate = ByteUtils.readUint8(data, offset) / 2.0;
-      offset += 1;
-      strokeCount = ByteUtils.readUint16(data, offset);
-      offset += 2;
+      if (offset + 1 <= data.length) {
+        strokeRate = ByteUtils.readUint8(data, offset) / 2.0;
+        offset += 1;
+      }
+      if (offset + 2 <= data.length) {
+        strokeCount = ByteUtils.readUint16(data, offset);
+        offset += 2;
+      }
     }
 
     // 位 1：平均划频（Average Stroke Rate）存在
     double? averageStrokeRate;
     if (ByteUtils.isBitSet(flags, 1)) {
-      averageStrokeRate = ByteUtils.readUint8(data, offset) / 2.0;
-      offset += 1;
+      if (offset + 1 <= data.length) {
+        averageStrokeRate = ByteUtils.readUint8(data, offset) / 2.0;
+        offset += 1;
+      }
     }
 
     // 位 2：总距离（Total Distance）存在
     int? totalDistance;
     if (ByteUtils.isBitSet(flags, 2)) {
-      totalDistance = ByteUtils.readUint24(data, offset);
-      offset += 3;
+      if (offset + 3 <= data.length) {
+        totalDistance = ByteUtils.readUint24(data, offset);
+        offset += 3;
+      } else if (offset + 2 <= data.length) {
+        totalDistance = ByteUtils.readUint16(data, offset);
+        offset += 2;
+      }
     }
 
     // 位 3：瞬时配速（Instantaneous Pace）存在（秒/500米）
     double? instantaneousPace;
     if (ByteUtils.isBitSet(flags, 3)) {
-      instantaneousPace = ByteUtils.readUint16(data, offset).toDouble();
-      offset += 2;
+      if (offset + 2 <= data.length) {
+        instantaneousPace = ByteUtils.readUint16(data, offset).toDouble();
+        offset += 2;
+      }
     }
 
     // 位 4：平均配速（Average Pace）存在（秒/500米）
     double? averagePace;
     if (ByteUtils.isBitSet(flags, 4)) {
-      averagePace = ByteUtils.readUint16(data, offset).toDouble();
-      offset += 2;
+      if (offset + 2 <= data.length) {
+        averagePace = ByteUtils.readUint16(data, offset).toDouble();
+        offset += 2;
+      }
     }
 
     // 位 5：瞬时功率（Instantaneous Power）存在
     int? instantaneousPower;
     if (ByteUtils.isBitSet(flags, 5)) {
-      instantaneousPower = ByteUtils.readSint16(data, offset);
-      offset += 2;
+      if (offset + 2 <= data.length) {
+        instantaneousPower = ByteUtils.readSint16(data, offset);
+        offset += 2;
+      }
     }
 
     // 位 6：平均功率（Average Power）存在
     int? averagePower;
     if (ByteUtils.isBitSet(flags, 6)) {
-      averagePower = ByteUtils.readSint16(data, offset);
-      offset += 2;
+      if (offset + 2 <= data.length) {
+        averagePower = ByteUtils.readSint16(data, offset);
+        offset += 2;
+      }
     }
 
     // 位 7：阻力等级（Resistance Level）存在
     double? resistanceLevel;
     if (ByteUtils.isBitSet(flags, 7)) {
-      resistanceLevel = ByteUtils.readSint16(data, offset) / 10.0;
-      offset += 2;
+      if (offset + 2 <= data.length) {
+        resistanceLevel = ByteUtils.readSint16(data, offset) / 10.0;
+        offset += 2;
+      }
     }
 
     // 位 8：消耗热量（Expended Energy）存在
@@ -80,44 +101,58 @@ class RowerDataParser {
     int? energyPerHour;
     int? energyPerMinute;
     if (ByteUtils.isBitSet(flags, 8)) {
-      totalEnergy = ByteUtils.readUint16(data, offset).toDouble();
-      offset += 2;
-      energyPerHour = ByteUtils.readUint16(data, offset);
-      offset += 2;
-      energyPerMinute = ByteUtils.readUint8(data, offset);
-      offset += 1;
+      if (offset + 2 <= data.length) {
+        totalEnergy = ByteUtils.readUint16(data, offset).toDouble();
+        offset += 2;
+      }
+      if (offset + 2 <= data.length) {
+        energyPerHour = ByteUtils.readUint16(data, offset);
+        offset += 2;
+      }
+      if (offset + 1 <= data.length) {
+        energyPerMinute = ByteUtils.readUint8(data, offset);
+        offset += 1;
+      }
     }
 
     // 位 9：心率（Heart Rate）存在
     int? heartRate;
     if (ByteUtils.isBitSet(flags, 9)) {
-      heartRate = ByteUtils.readUint8(data, offset);
-      offset += 1;
+      if (offset + 1 <= data.length) {
+        heartRate = ByteUtils.readUint8(data, offset);
+        offset += 1;
+      }
     }
 
     // 位 10：代谢当量（Metabolic Equivalent）存在
     double? metabolicEquivalent;
     if (ByteUtils.isBitSet(flags, 10)) {
-      metabolicEquivalent = ByteUtils.readUint8(data, offset) / 10.0;
-      offset += 1;
+      if (offset + 1 <= data.length) {
+        metabolicEquivalent = ByteUtils.readUint8(data, offset) / 10.0;
+        offset += 1;
+      }
     }
 
     // 位 11：已运动时间（Elapsed Time）存在
     int? elapsedTime;
     if (ByteUtils.isBitSet(flags, 11)) {
-      elapsedTime = ByteUtils.readUint16(data, offset);
-      offset += 2;
+      if (offset + 2 <= data.length) {
+        elapsedTime = ByteUtils.readUint16(data, offset);
+        offset += 2;
+      }
     }
 
     // 位 12：剩余时间（Remaining Time）存在
     int? remainingTime;
     if (ByteUtils.isBitSet(flags, 12)) {
-      remainingTime = ByteUtils.readUint16(data, offset);
-      offset += 2;
+      if (offset + 2 <= data.length) {
+        remainingTime = ByteUtils.readUint16(data, offset);
+        offset += 2;
+      }
     }
 
     return WorkoutData(
-      machineType: MachineType.rower,
+      machineType: machineType ?? MachineType.rower,
       strokeRate: strokeRate,
       strokeCount: strokeCount,
       averageStrokeRate: averageStrokeRate,
