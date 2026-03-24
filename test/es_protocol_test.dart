@@ -1,9 +1,9 @@
 import 'dart:async';
 import 'dart:typed_data';
 
-import 'package:eqi_ble_sdk/src/core/ble_device.dart';
-import 'package:eqi_ble_sdk/src/protocols/es/es_constants.dart';
-import 'package:eqi_ble_sdk/src/protocols/es/es_protocol.dart';
+import 'package:ble_sdk/src/core/ble_device.dart';
+import 'package:ble_sdk/src/protocols/es/es_constants.dart';
+import 'package:ble_sdk/src/protocols/es/es_protocol.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 class _FakeBleDevice extends BleDevice {

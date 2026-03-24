@@ -1,9 +1,9 @@
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:eqi_ble_sdk/eqi_ble_sdk.dart';
-import 'package:eqi_ble_sdk/src/protocols/efc/efc_constants.dart';
-import 'package:eqi_ble_sdk/src/protocols/efc/efc_data_parser.dart';
+import 'package:ble_sdk/ble_sdk.dart';
+import 'package:ble_sdk/src/protocols/efc/efc_constants.dart';
+import 'package:ble_sdk/src/protocols/efc/efc_data_parser.dart';
 
 void main() {
   test('FtmsProtocol ID test', () {

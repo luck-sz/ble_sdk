@@ -1,4 +1,4 @@
-/// EQI BLE SDK - 用于 EQI 健身设备 BLE 通信的 Flutter SDK
+/// BLE SDK - 用于 EQI 健身设备 BLE 通信的 Flutter SDK
 ///
 /// 本 SDK 支持 EQI FTMS 通信协议，并设计为可扩展架构，
 /// 以便未来支持更多协议（EFC、ES 等）。

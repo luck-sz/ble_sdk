@@ -1,6 +1,6 @@
-# EQI BLE SDK 使用指南
+# BLE SDK 使用指南
 
-EQI BLE SDK 是一个专为全系列健身设备（跑步机、单车、椭圆机、划船机等）设计的 Flutter 插件。它通过统一的抽象接口，封装了标准的 **FTMS** 协议，并深度兼容支持 EQI 私有的扩展协议（**ES**, **EFC** 等）。
+BLE SDK 是一个专为全系列健身设备（跑步机、单车、椭圆机、划船机等）设计的 Flutter 插件。它通过统一的抽象接口，封装了标准的 **FTMS** 协议，并深度兼容支持 EQI 私有的扩展协议（**ES**, **EFC** 等）。
 
 ---
 
@@ -11,8 +11,8 @@ EQI BLE SDK 是一个专为全系列健身设备（跑步机、单车、椭圆�
 
 ```yaml
 dependencies:
-  eqi_ble_sdk:
-    path: ../eqi_ble_sdk # 请填写 SDK 在您电脑上的真实相对或绝对路径
+  ble_sdk:
+    path: ../ble_sdk # 请填写 SDK 在您电脑上的真实相对或绝对路径
 ```
 
 ### 1.2 权限配置
@@ -44,7 +44,7 @@ dependencies:
 
 ```dart
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
-import 'package:eqi_ble_sdk/eqi_ble_sdk.dart';
+import 'package:ble_sdk/ble_sdk.dart';
 
 FlutterBluePlus.onScanResults.listen((results) {
   for (ScanResult r in results) {
